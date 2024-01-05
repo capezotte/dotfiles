@@ -1,0 +1,45 @@
+#!/bin/sh
+
+_emerge=0
+if [ "$1" = --emerge ]; then
+	_emerge=1
+	shift
+fi
+
+# get sudo to read /var/log/emerge.log if needed
+SUDO=''
+if [ ! -r /var/log/emerge.log ]; then
+	for SUDO in sudo doas ssu; do
+		[ ! -x "$(command -v "$SUDO")" ] || break
+	done
+fi
+
+# Get compiled packages list
+if [ "$_emerge" -eq 0 ]; then
+	portageq "$@" 2>/dev/null
+else
+	emerge -p "$@"
+fi |
+# Trim to package atoms
+sed -E 's/(-[^-]+)(-r[[:digit:]]+)?$//' | sort -u |
+# Compile times actual get
+$SUDO xargs qlop -Mtm -- |
+perl -e '
+	sub loltime {
+		return sprintf "%02d:%02d:%02d", ($_[0]%86400)/3600, ($_[0]%3600)/60, ($_[0]%60);
+	}
+	while (<>) {
+		( $atom, $time ) = m/^\d+ [<>]+ (.*): (\d+)$/;
+		if (!defined($min{$atom}) or $min{$atom} > $time) {
+			$min{$atom} = $time;
+		}
+		if (!defined($max{$atom}) or $max{$atom} < $time) {
+			$max{$atom} = $time;
+		}
+		$sum{$atom} += $time;
+		$count{$atom}++;
+	}
+	for $atom (keys %min) {
+		printf "%s: %s (%s~%s)\n", $atom, loltime($sum{$atom} / $count{$atom}), loltime($min{$atom}), loltime($max{$atom})
+	}
+'

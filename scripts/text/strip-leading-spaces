@@ -1,0 +1,4 @@
+#!/usr/bin/awk -f
+NR == 1 { strip = $0; gsub("[^[:blank:]].*$","",strip); }
+match($0, "^" strip) { print substr($0, RSTART+RLENGTH); next }
+1 # print non matching lines unchanged

@@ -1,0 +1,9 @@
+#!/bin/sh
+tree=$(swaymsg -t get_tree | jq 'recurse(.nodes[], .floating_nodes[]) | select(.visible)')
+
+if xy=$(printf '%s\n' "$tree" |
+	jq -r '{name} + {id} + .rect | "\(.x),\(.y) \(.width)x\(.height) \(.name) (\(.id))"' | 
+		slurp -rf '{"x":%x,"y":%y,"width":%w,"height":%h}')
+then
+	printf '%s\n' "$tree" | jq --argjson xy "$xy" 'select(.rect == $xy)'
+fi

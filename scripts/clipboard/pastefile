@@ -1,0 +1,36 @@
+#!/bin/sh
+if [ -S "${XDG_RUNTIME_DIR}/${WAYLAND_DISPLAY}" ]; then
+	targets() { wl-paste -l; }
+	output() { wl-paste ${target:+-t "$target"}; }
+else
+	xyzzy() { xclip -selection clipboard "$@"; } 
+	targets() { xyzzy -t TARGETS -o; } 
+	output() { xyzzy ${target:+-t "$target"} -o; }
+fi
+
+set --
+while read -r target; do
+	set -- "$@" "$target"
+done <<EOF
+$( { targets | grep -vx '[^[:lower:]]*'; } 2>/dev/null )
+EOF
+
+case $# in
+(0) echo No target available. 2>&1; exit 1 ;;
+(1) target=$1 ;;
+(*) target=$(printf '%s\n' "$@" | fzf --prompt="Choose a filetype:") ;;
+esac
+
+printf 'Type: %s. Filename? ' "${target:?No target available.}"; read -r outfile
+
+if [ -f "$outfile" ]; then
+	# First line of `locale LC_MESSAGES` is a yes regex.
+	read -r YES <<EOF
+$(locale LC_MESSAGES)
+EOF
+	printf 'File %s already exists. Overwrite? ' "$outfile"; read -r choice
+	expr "$choice" : "$YES" >/dev/null 2>&1 || exit 1
+fi
+
+output > "${outfile:?No output file.}"
+

@@ -1,0 +1,6 @@
+set previewer ~/.config/lf/scope
+map gd $exec execlineb -Pc 'importas -sd"\n" f fx dragon -- $f'
+map gD !exec ~/.config/lf/drop
+
+set icons true
+set sixel true

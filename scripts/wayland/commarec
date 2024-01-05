@@ -1,0 +1,44 @@
+#!/bin/execlineb -P
+backtick -EI output
+{
+	# catch stderr instead of stdout
+	fdswap 1 2
+	backtick o { date "+%Y-%m-%d %H-%M-%S.mkv" }
+	backtick g { pipeline -d { sway-wingeom } slurp -or }
+	background
+	{
+			multisubstitute
+			{
+				importas -ui geom g
+				importas -ui out o
+			}
+			fdmove -c 2 1
+			emptyenv -c
+			wf-recorder -g$geom -ch264_vaapi -d/dev/dri/renderD129 -f$out
+	}
+	importas -i !wf-recorder !
+	background { fdmove -c 2 1 zenity --info --text="Press OK to stop recording" }
+	importas -i !zenity !
+	wait -o { }
+	importas -ui ! !
+	case -e $!
+	{
+		$!wf-recorder
+		{
+			foreground { kill -INT $!zenity }
+			foreground { fdmove -c 1 2 s6-echo wf-recorder crashed }
+			wait
+		}
+		$!zenity
+		{
+			foreground { kill -INT $!wf-recorder }
+			foreground
+			{
+				importas -i out o
+				fdmove -c 1 2
+				s6-echo -- file saved as: $out
+			}
+			wait
+		}
+	} echo BUG
+} notify-send -a Commarec $output

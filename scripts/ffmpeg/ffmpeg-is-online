@@ -1,0 +1,11 @@
+#!/bin/sh
+NAME="${1:?'Nobody is online :('}"
+INPUT="${2:?No input}"
+OUTPUT="${3:-${2%.*}.gif}"
+shift 3
+# ffmpeg escape hell
+NAME2=$(printf %s "$NAME" | sed "s/\\\\/\\\\&/g;s/[:\\\\']/\\\\&/g;s/[],;\\\\'[]/\\\\&/g")
+printf %s\\n "$NAME2"
+# dew it
+exec ffmpeg "$@" -i "$INPUT" -vf "scale=320:-1,drawtext=text=${NAME2} is online:x=(w-tw)/2:y=7*h/8-th/2:fontcolor=white:font=Ubuntu:fontsize=24,split[gsrc][src],\
+[gsrc]palettegen[pal],[src][pal]paletteuse" -f gif "$OUTPUT"

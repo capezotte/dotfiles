@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+files=()
+while read -ru3 url; do case "$url" in
+(file://*)
+	url=${url#'file://'}; url=${url//%/\\x};
+	# shellcheck disable=2016
+	printf -v 'files[${#files[@]}]' '%b' "$url" ;;
+(*://*)
+	printf 'Downloading:\n%s\n[P]roceed? ' "$url"
+	if read -r choice && [[ "$choice" = [Pp] ]]; then
+		curl -LO "$url"
+	else
+		continue
+	fi ;;
+(*)
+	echo "Unexpected: $url" >&2 ;;
+esac; done 3< <(dragon -x -t)
+
+if ((${#files[@]})); then
+	echo "Files:"; printf '%s\n' "${files[@]}"
+	read -rp "mo[V]e or co[P]y? " choice
+	cmd='false'
+	case $choice in ([Pp]) cmd='cp' ;; ([Vv]) cmd='mv' ;; esac
+	exec "$cmd" -v -- "${files[@]}" .
+fi

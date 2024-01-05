@@ -1,0 +1,40 @@
+#!/usr/bin/awk -f
+FNR==1 && /^#!/ {
+	gsub("env[[:space:]]*",""); gsub("^#![[:space:]]*",""); gsub("[[:space:]]+.*$",""); gsub("^.*/","");
+	shebang[FILENAME] = $0;
+	shb = $0;
+	if (shb) totalfiles++;
+	files[$0]++;
+	# Don't count the shebang
+	next;
+}
+
+# Avoid non-script files
+!shebang[FILENAME] { next; }
+
+# Skip empty lines
+/^[[:blank:]]*$/ { next; }
+/^[[:blank:]]*#/ { next; }
+
+# Don't count perl pods
+shb == "perl" && /^=pod/,/^=cut/ { next; }
+
+# Don't count shell multilines.
+shb ~ "sh$" && ( /\\$/ || /(&&|\|\|)[[:blank:]]*$/ ) { next; }
+
+shb { sloc[shb]++; }
+
+# Count total
+{ totalline++; }
+
+END {
+	fmt="%s|%d|%.2f%%|%d|%.2f%%\n"
+	cmd="sort -t '|' -nk2 | column -t -N Language,LoC,%LoC,Files,%Files -R %LoC,LoC,%Files,Files -s '|'"
+	for (prog in sloc) {
+		totalsloc += sloc[prog]
+		printf fmt, prog, sloc[prog], sloc[prog]*100/totalline, files[prog], files[prog]*100/totalfiles | cmd
+	}
+	printf fmt,"TOTAL",totalsloc,totalsloc*100/totalline,totalfiles,100 | cmd
+	close(cmd)
+	#printf "Analysed %d files (%d/%d lines)\n", totalfiles, totalsloc, totalline
+}

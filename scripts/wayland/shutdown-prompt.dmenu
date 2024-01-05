@@ -1,0 +1,40 @@
+#!/bin/sh
+YES=Sim
+NO=Não
+
+case "$(tty)" in (/dev/tty[0-9]) export BEMENU_BACKEND=curses ;; esac
+
+dmenu_yesno() {
+	PROMPT=$1; shift
+	case "$(printf '%s\n' "$YES" "$NO" | dmenu -i -p "$PROMPT")" in
+	("$YES") "$@" ;;
+	(*) return 1 ;;
+	esac
+}
+
+uptime=$(uptime -p)
+action=$(printf '%s\n' 'Desligar' 'Reiniciar' 'Bloquear tela' 'Suspender' 'Sair' | dmenu -i -p "${uptime#up }")
+
+case $action in
+('Sair')
+	dmenu_yesno "Sair?" s6-rc -l "$XDG_RUNTIME_DIR/s6-rc" -up change core
+	exit
+;;
+('Desligar')
+	pwr_action=poweroff
+;;
+('Reiniciar')
+	pwr_action=reboot
+;;
+('Bloquear tela')
+	pwr_action=lock
+;;
+('Suspender')
+	pwr_action=suspend
+;;
+(*)
+	exit 1
+;;
+esac
+
+dmenu_yesno "$action?" pwrmgmt "$pwr_action"

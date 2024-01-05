@@ -1,0 +1,22 @@
+#!/bin/sh
+# https://gist.github.com/stefanschmidt/5248592
+
+SED=''
+
+while getopts :sa OPT; do case $OPT in
+	'a') SED="$SED;\|^/Annots|d;\|/Type /Annot|d" ;;
+	's') SED="$SED;\|^/FT /Sig|d" ;;
+	'?') echo "Unexpected option -$OPTARG, see $0 -h for more."; exit 1;;
+	*) echo "Unexpected stuff."; exit 1;;
+esac; done
+shift "$((OPTIND-1))"
+
+SED="${SED#;}"
+: "${SED:?Specify -a or -s.}"
+
+# Check if input exist.
+if test ! -f "$1"; then echo "No such file: $1"; exit 1; fi
+OUT=${2:?No output.}
+if [ -f "$OUT" ]; then echo "$OUT already exists!"; exit 1; fi
+
+pdftk "$1" output - uncompress | LANG=C LC_CTYPE=C sed "$SED" | pdftk - output "$OUT" compress

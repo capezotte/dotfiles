@@ -1,0 +1,50 @@
+# i3blocks configuration file
+#
+# The i3blocks man page describes the usage of the binary,
+# and its website describes the configuration:
+#
+#     https://vivien.github.io/i3blocks
+
+
+# Global properties
+separator=true
+separator_block_width=15
+
+[music]
+command=playerctl -Ff {{title}} metadata
+color=b48ead
+interval=persist
+
+[notify]
+command=swaync-t
+color=b48eda
+interval=persist
+click=swaync-client -t
+
+[cpu]
+command=cpu-perc 2
+color=a3be8c
+interval=persist
+
+[mem]
+command=ram-usage
+color=#d08770
+interval=5
+
+[battery]
+command=battery-level
+interval=3
+
+[bright]
+color=#EBCB8B
+command=bright-perc intel_backlight
+interval=persist
+
+[pulse]
+color=#5E81AC
+command=pulse-volume
+interval=persist
+
+[time]
+command=date '+%a %d, %H:%M'
+interval=1

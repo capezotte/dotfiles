@@ -1,0 +1,29 @@
+#!/usr/bin/env perl
+use open ':std', ':encoding(utf8)';
+use Unicode::Normalize qw(normalize);
+use utf8;
+
+# Regional indicators
+for $i (A..Z) { $regional{$i} = sprintf("%c",ord($i)+127397); }
+# Keycap characters
+for $i ( 1..10, '#', '*') { $regional{$i} = sprintf("%s%c%c", $i, 65039, 8419) }
+
+%regional = ( %regional,
+	"?" => "❔", "!" => "❕", "." => "▪️", "," => "🌙", "+" => "➕", "-" => "➖", # Punctuation
+	'"' => "⏸️", "'" => "🚦", # Quotes
+	'$' => "💲", "÷" => "➗", "~" => "〰️", "|" => "🚦", "/" => "🗞️", "\\" => "🔪", # Misc
+	" " => " ", # Triple space
+);
+
+$from_set = join('', keys(%regional));
+$unmatch = qr/[^[:blank:]\Q$from_set\E]/; $match = qr/[\Q$from_set\E]/;
+
+while (<>) {
+	chomp; # Trim final newline
+	$_ = normalize('KD',$_); # Separate accents from characters
+	$_ = uc($_); # Uppercase
+	$_ =~ s/$unmatch//g; $_ =~ s/$match/$regional{$&} /g; # Transliterate
+	print "$_\n"; # Print when we're done
+}
+
+

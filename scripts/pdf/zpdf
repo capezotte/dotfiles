@@ -1,0 +1,55 @@
+#!/bin/sh
+# Based on http://www.alfredklomp.com/programming/shrinkpdf
+
+set -e
+
+cleanup() {
+	if [ -e "$OVERLAY" ]; then rm "$OVERLAY"; fi
+	if [ -e "$BACK" ]; then rm "$BACK"; fi
+}
+
+# Arquivos temporários
+OVERLAY="$(mktemp -t zpdf.XXXXXXXXXX)"
+BACK="$(mktemp -t zpdf.XXXXXXXXXX)"
+
+trap cleanup INT HUP TERM EXIT
+
+# Resolução de saída
+DPI=${3:-72}
+
+# Arquivo de entrada:
+INPUT=${1:?Sem arquivo de entrada.}
+if [ -f "$INPUT" ]; then
+	echo "Arquivo de entrada: $INPUT"
+else
+	>&2 echo "Arquivo de entrada $INPUT não existe."
+	exit 1
+fi
+
+# Arquivo de saída
+OUT=${2:?Sem arquivo de saída.}
+echo "Arquivo de saída: $OUT"
+
+# Opções para o Ghostscript.
+gs_o() {
+	gs -q -dNOPAUSE -dBATCH -sDEVICE=pdfwrite \
+		-dAutoRotatePages=/None \
+		-dColorImageDownsampleType=/Bicubic \
+		-dColorImageResolution="$DPI" \
+		-dGrayImageDownsampleType=/Bicubic \
+		-dGrayImageResolution="$DPI" \
+		-dMonoImageDownsampleType=/Subsample \
+		-dMonoImageResolution="$DPI" "$@"
+}
+
+printf %s 'Extraindo o texto e imagens... '
+	# Arquivo com o texto a ser sobreposto
+	gs_o -o "$OVERLAY" -dFILTERIMAGE -dFILTERVECTOR "$INPUT" &
+	# Arquivo com o plano de fundo.
+	gs_o -o "$BACK" -dFILTERTEXT -dPDFSETTINGS=/screen "$INPUT"
+	wait
+echo '[OK]'
+
+printf %s 'Sobrepondo texto e imagens, aguarde... '
+	pdftk "$OVERLAY" multibackground "$BACK" output "$OUT"
+echo '[OK]'

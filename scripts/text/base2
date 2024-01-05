@@ -1,0 +1,71 @@
+#!/usr/bin/env perl
+# Appease the almighty lords of backwars compatibility
+use Getopt::Std; $Getopt::Std::STANDARD_HELP_VERSION = 1;
+$VERSION="0.1";
+
+use Pod::Usage qw(pod2usage);
+sub HELP_MESSAGE() {
+	pod2usage(0);
+}
+
+# Read data in blocks of \SIZE
+# Is this how one unix streams?
+$/ = \1024;
+# Buffer we'll hold the read data.
+$buf = "";
+
+getopts('dw:');
+$wrap = $opt_w || 72;
+if ($wrap <= 1) { die 'Invalid wrap length.'; }
+
+# Decode mode
+if ($opt_d) {
+	while (<>) {
+		# Trim everything that is not binary
+		$buf .= s/[^01]//gr;
+		while (length($_ = substr($buf,0,8)) >= 8) {
+			print pack("B8");
+			$buf = substr($buf,8);
+		}
+	}
+	if (length($buf)) { print STDERR "WARNING: some binary characters remained in the buffer.\n"; }
+# Encode mode
+} else {
+	while (<>) {
+		$buf .= unpack("B*");
+		# Perform wrapping
+		while (length($buf) > $wrap) {
+			print substr($buf,0,$wrap),"\n";
+			$buf = substr $buf,$wrap;
+		}
+	}
+	print "$buf\n";
+}
+
+__END__
+
+=pod
+
+=head1 NAME
+
+base2 - simple wrapper around the pack/unpack perl functions for encoding/decoding base 2 strings.
+
+=head1 SYNOPSIS
+
+base2 [-d | -w INTEGER] [FILE]
+
+=head2 OPTIONS
+
+=over
+
+=item -d
+
+Decode text (encodes by default).
+
+=item -w INTEGER
+
+Wrap at INTEGER characters when encoding.
+
+=back
+
+=cut

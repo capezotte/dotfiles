@@ -1,0 +1,38 @@
+#!/bin/sed -nf
+# First line: only hold and skip.
+1 { h;d; }
+# Line with only spaces: wow, free paragraph information!
+/^\s*$/ { s/^.*$//; bfinished }
+# Append line to hold space.
+H
+# Line ends with dot? We have a new paragraph.
+/\.$/bfinished
+# Render last line
+$bfinished
+# If we didn't branch to finish, then skip.
+# We already have held the pattern anyway.
+d
+:finished
+# One of the above conditions happened. Let's roll.
+# Get hold space
+x
+# Handle hyphenation
+# ASCII and Unicode hypen
+s/[-­]\n//g
+# Delete newlines
+s/\n/ /g
+# Add some paragraphing
+a\
+
+# Print hold space
+p
+# Empty hold space
+s/.*//g
+# Get old pattern space
+x
+# Squeeze empty lines.
+:spacefind
+n
+/^\s*$/bspacefind
+# Hold first non-space only line
+h

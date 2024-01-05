@@ -1,0 +1,7 @@
+#!/bin/sh
+# Requires a patched dbus so a user session can use service-helpers.
+
+while IFS='=' read -r dbus actual; do
+	[ "$1" = "$dbus" ] &&
+		exec s6-rc -l"$XDG_RUNTIME_DIR/s6-rc" start "$actual"
+done

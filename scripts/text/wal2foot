@@ -1,0 +1,19 @@
+#!/usr/bin/jq -rf
+def o(a): a | ltrimstr("#");
+"[cursor]",
+"color=" + o(.special.foreground) + " " + o(.special.background),
+"[colors]",
+(
+	.colors | to_entries | .[] | (
+		(
+			.key | gsub("[^0-9]";"") | tonumber |
+			if . < 8 then
+				("regular" + (. | tostring))
+			else
+				("bright" + ( . - 8 | tostring))
+			end
+		) +
+		"=" +
+		o(.value)
+	)
+)

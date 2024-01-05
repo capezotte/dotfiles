@@ -1,0 +1,5 @@
+#!/bin/sh
+swaync-client -s | jq --unbuffered '(.count | tostring) + " notification" + if .count != 1 then "s" else "" end' &
+while read -r btn; do
+	[ "$btn" -eq 1 ] && swaync-client -t
+done

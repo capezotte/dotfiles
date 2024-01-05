@@ -1,0 +1,11 @@
+#!/bin/sh
+ ffmpeg \
+	-stream_loop -1 -i "${1?:Need input file}" -t 2 \
+	-filter_complex 'split[top][b1];
+	     [b1]vflip[bottom];
+	     [top][bottom]vstack[ms];
+	     [ms]split[m0][m1];
+	     [m0][m1]vstack[spinny];
+	     [spinny]crop=h=ih/4:y=(3*ih/4)*(t/3)' \
+	"${2?:Need output file}"
+

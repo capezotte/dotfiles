@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+
+unset dirs
+declare -A seen cmd
+
+IFS=:
+for i in "${XDG_DATA_DIR:-$HOME/.local/share}" ${XDG_DATA_DIRS-/usr/share:/usr/local/share}; do
+	n="$i/applications"
+	[ ! -d "$n" ] || dirs="${dirs+$dirs:}$n"
+done
+
+for dir in $dirs; do
+	for file in "$dir"/*.desktop; do
+		name="" cmdline="" path=""
+		while IFS='=' read -r KEY VAL; do
+			case $KEY in
+			(Name) name="${name:-$VAL}" ;;
+			(Path) path="$VAL" ;;
+			(Exec) cmdline="${cmdline:-${VAL//'%'?}}" ;;
+			esac
+		done < "$file"
+		if [[ $name && $cmdline && ! -v seen[$name] ]]; then
+			cmd[$name]="${path:+cd $(s6-quote -- "$path") }$cmdline"
+			# echo "$name: $cmdline"
+			seen[$name]=1
+		fi
+	done
+done
+
+read -r CMD < <(printf '%s\n' "${!cmd[@]}" | dmenu -ip Programas)
+
+[[ $CMD && -v cmd[$CMD] ]] && CMD=${cmd[$CMD]}
+
+case ${CMD%%[[:space:]]*} in
+# Lang for GNU programs
+(gimp*) CMD="unexport LANG $CMD" ;;
+# nice time in telegram
+(*gram-desktop) CMD="unexport WAYLAND_DISPLAY export LC_TIME C $CMD" ;;
+# I hate emulators
+(dolphin-emu|m64py|mgba-qt) CMD="unexport WAYLAND_DISPLAY $CMD" ;;
+# ignore empty
+('')    exit 100 ;;
+esac
+
+exec s6-sudo "$XDG_RUNTIME_DIR/apprunner" execlineb -Pc "$CMD" <>/dev/null 2>&1 0>&1

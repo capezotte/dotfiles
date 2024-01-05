@@ -1,0 +1,19 @@
+#!/bin/execlineb -S0
+bemenu
+
+--fn "Inter"
+
+--hf "#2e3440"
+--hb "#4c566a"
+--nf "#d8dee9"
+--nb "#2e3440"
+
+--tf "#d8dee9"
+--tb "#2e3440"
+--scf "#d8dee9"
+--scb "#2e3440"
+
+--ff "#d8dee9"
+--fb "#2e3440"
+
+$@

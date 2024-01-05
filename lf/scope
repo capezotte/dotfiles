@@ -1,0 +1,100 @@
+#!/bin/sh
+file=$1
+width=$2
+height=$3
+x=$4
+y=$5
+# play with these values
+hfac=4
+vfac=$((hfac*2))
+shift 5
+
+ftype=$(xdg-mime query filetype "$file")
+thumb_dir=/tmp/lfprev
+thumb_path=/tmp/lfprev/prev.jpg
+
+mkdir -p -- "$thumb_dir"
+
+img() {
+	_img="${1-$thumb_path}"
+	# use largest dimension of the image
+	read -r img_w img_h <<EOF
+$(identify -format "%w %h" "$_img")
+EOF
+	term_w=$((width*hfac))
+	term_h=$((height*vfac))
+	if [ "$img_h" -gt "$img_w" ]; then
+		echo hw "$_img" > /tmp/test
+		_arg="-h$term_h"
+	else
+		echo wh "$_img" > /tmp/test
+		_arg="-w$term_w"
+	fi
+	img2sixel -S "$_arg" -- "$_img"
+	return 1
+}
+
+txt() {
+	bat -ppf -- "${1-$file}"
+}
+
+gimp_quote() {
+	printf '%s' "$1" | gsed -Ez 's/"/\\&/g;s/^|$/"/g'
+}
+
+case "$ftype" in
+(image/x-xcf)
+	# proof of concept, really slow
+	_qf="$(gimp_quote "$file")"
+	_qbn="$(gimp_quote "${file##*/}")"
+	timeout 24 gimp -iscb \
+		"(catch (gimp-quit 1) (let ((xcf (car (gimp-xcf-load 0 $_qf $_qbn))))
+			((file-jpeg-save 1 xcf (car (gimp-image-flatten xcf)) \"$thumb_path\" \"${thumb_path##*/}\" 1 1 1 0 \"\" 0 0 0 0))))
+		(gimp-quit 0)" 2>/dev/null >&2 && img
+;;
+(image/*) img "$file" ;;
+(video/*|application/x-matroska)
+	# ffmpeg-thumbnailer likes to crash on me.
+	ffmpeg -y -i "$file" -vframes 1 "$thumb_path"
+	img
+;;
+(audio/*)
+	ffprobe \
+		-hide_banner -loglevel 8 \
+		-show_format -show_streams \
+		-of json "$file" |
+		jq -r '[ .streams[], .format | .tags // empty ] | add |
+			"Title: " + (.title // "\u001b[1mUnknown\u001b[0m") + "\n" +
+			"Album: " + (.album // "\u001b[1mUnknown\u001b[0m") + "\n" +
+			"Year: " + (.date // "\u001b[1mUnknown\u001b[0m") + "\n" +
+		""'
+;;
+(application/*-tar|application/vnd.rar|application/zip|application/x-java-archive)
+	bsdtar -tf "$file"
+;;
+(application/pdf)
+	pdftoppm -jpeg -f 1 -singlefile "$file" "${thumb_path%.jpg}"
+	img
+;;
+(application/msword|application/ms-powerpoint|application/vnd.openxmlformats*|application/vnd.oasis.opendocument*|application/rtf)
+	if soffice --headless --convert-to tmp.pdf --outdir "$thumb_dir" "$file" >/dev/null 2>&1 \
+	&& mv -f -- "$thumb_dir/"*.tmp.pdf "$thumb_dir/tmp.pdf"
+	then
+		pdftoppm -jpeg -f 1 -singlefile "$thumb_dir/tmp.pdf" "${thumb_path%.jpg}"
+		img
+	fi
+	rm -f -- "$thumb_dir/tmp.pdf"
+;;
+(text/html)
+	lynx -width="$width" -display_charset=utf-8 -dump "$file"
+;;
+(text/*|application/xml|application/json|application/x-awk|application/x-perl|application/x-shellscript|application/x-m4)
+	case "$file" in
+	(*.[0-9]) man "$file" | col -b ;;
+	(*) txt ;;
+	esac
+;;
+(*)
+	printf 'Cannot preview %s\n(filetype: %s)\n' "$file" "$ftype"
+;;
+esac

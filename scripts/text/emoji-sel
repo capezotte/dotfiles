@@ -1,0 +1,11 @@
+#!/bin/sh
+EMOJI=$(<~/.config/roice/emoji dmenu -i -p 'Emoji' -l 30) || exit 1
+
+case `printf %03d \'"$EMOJI"` in
+(0[0-9][0-9]|1[01][0-9]|12[0-7]) EMOJI="$(echo "$EMOJI" | regional-emoji)" ;;
+(*) EMOJI=${EMOJI%% *} ;;
+esac
+
+wl-copy -n <<EOF && notify-send >/dev/null 2>&1 -a "Seletor de Emoji" -- "$EMOJI foi copiado para área de transferência."
+$EMOJI
+EOF

@@ -1,0 +1,53 @@
+#!/bin/sh
+og_vid="$1"
+tmpframes="$(mktemp -d /tmp/framesXXXX)"
+
+ff() {
+	ffmpeg -hide_banner -loglevel 24 "$@"
+}
+
+cleanup() {
+	find "$tmpframes" \( -name 'in.avi' -o -name 'out.avi' -o -name 'frm-*.raw' \) -delete
+	rmdir -- "$tmpframes"
+}
+
+trap cleanup EXIT INT TERM QUIT HUP
+
+# Encode to Xvid so I-frames are generated.
+# https://www.reddit.com/r/datamoshing/comments/t46x3i/datamoshing_with_ffmpeg_howto_in_comments/
+ff -i "$og_vid" -c:v libxvid -q:v 1 -g 1000 -qmin 1 -qmax 1 -flags qpel+mv4 -an "${tmpframes}/in.avi"
+
+# Extract raw frames
+ff -i "${tmpframes}/in.avi" -c:v copy -start_number 0 "$tmpframes"/frm-%d.raw
+
+# Write fake-AVI file
+{
+	# First, a NUL for the file.
+	printf '\0'
+	# Append keyframes. First, get a list of keyframes from Xvid reencode
+	ffprobe -loglevel 8 -of json -show_frames:v "${tmpframes}/in.avi" -hide_banner |
+		jq --raw-output0 --arg dir "$tmpframes" '.frames |
+			reduce to_entries[] as $item (
+				# .[0]: have we reached the first i-frame?
+				# .[1]: frames to be included in final avi
+				[false,[]];
+				[
+					.[0] or $item.value.pict_type == "I",
+					.[1] + [
+						if .[0] == false or $item.value.pict_type != "I" then
+							# p-frame or first I-frame
+							$item.key
+						else
+							# i frame, but not the first; reuse next frame
+							$item.key + 1
+						end
+					]
+				]
+			) | .[1][] | $dir + "/frm-" + tostring + ".raw"' |
+		xargs -0 -- cat --
+} > "${tmpframes}/out.avi"
+
+# rejoin original audio
+bname="${og_vid%.*}"
+bname="${bname##*/}"
+ff -i "${tmpframes}/out.avi" -i "$og_vid" -c copy -map '0:v' -map '1:a' "${bname}_mosh.avi"

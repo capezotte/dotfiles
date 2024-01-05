@@ -1,0 +1,17 @@
+#!/bin/sh
+overlay=$(
+	until [ "$PWD" = / ]; do
+		if [ -f profiles/repo_name ]; then
+			pwd
+			exit
+		else
+			cd ..
+		fi
+	done
+	exit 1
+) || { echo >&2 'Unable to find overlay in parent directories...'; exit 1; }
+
+printf '>>> Appending %s to PORTDIR_OVERLAY...\n' "$overlay"
+export PORTDIR_OVERLAY="${PORTDIR_OVERLAY+$PORTDIR_OVERLAY:}$overlay"
+
+exec emerge "$@"

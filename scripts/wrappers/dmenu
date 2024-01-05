@@ -1,0 +1,12 @@
+#!/bin/execlineb
+elgetopt -D "" ixl:p:
+ifthenelse -s { eltest -v ELGETOPT_x -a ! -v ELGETOPT_l }
+	{ export ELGETOPT_l 0 }
+	{ }
+multisubstitute
+{
+	importas hide   ELGETOPT_x
+	importas lines  ELGETOPT_l
+	importas prompt ELGETOPT_p
+}
+emptyenv -c fuzzel -d --password$hide -l$lines "-p${prompt} "

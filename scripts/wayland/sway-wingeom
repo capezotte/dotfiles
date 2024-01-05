@@ -1,0 +1,2 @@
+#!/bin/sh
+swaymsg -t get_tree | jq -r 'recurse(.nodes[], .floating_nodes[]) | select(.visible) | {name} + {id} + .rect | "\(.x),\(.y) \(.width)x\(.height) \(.name) (\(.id))"'

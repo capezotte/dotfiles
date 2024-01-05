@@ -1,0 +1,37 @@
+#!/bin/sh
+set -f
+IFS='
+'
+
+add_entry() {
+	grep -Fxq "$1=$2" ~/.config/dbus-aliases || printf '%s\n' "$1=$2" >> ~/.config/dbus-aliases
+}
+
+for f; do
+	[ -f "$f" ] || continue
+	unset Name Exec SystemdService
+	export $(grep -F = "${f:?No D-Bus service}")
+
+	out=${Exec##*/}
+
+	if [ "$Name" ] && [ "$Exec" ] && [ "$out" ]; then
+		if [ -d "$out" ] || [ -d "$out-srv" ]; then
+			printf 'Skipping %s (folder exists)\n' "$out"
+			add_entry "$Name" "$out"
+			continue
+		fi
+		69-boilerplate "$out" || continue
+		(
+			cd "$out-srv"
+			echo 3 > notification-fd
+			install -D /dev/null dependencies.d/dbus
+			printf '%s\n' \
+				'#!/bin/execlineb -P' \
+				'fdmove -c 2 1' \
+				"/usr/local/bin/dbus-service-wait -d3 $Name $Exec" > run
+		)
+		add_entry "$Name" "$out"
+	else
+		printf >&2 'Missing Name or Exec directives in %s.\n' "$f"
+	fi
+done

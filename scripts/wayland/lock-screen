@@ -1,0 +1,5 @@
+#!/bin/execlineb -P
+importas -i HOME HOME
+gtklock
+-m playerctl-module
+-b ${HOME}/Imagens/Wallpapers/lamp_electricity_minimalism_128251_1366x768.jpg

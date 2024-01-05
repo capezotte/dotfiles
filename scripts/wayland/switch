@@ -1,0 +1,39 @@
+#!/bin/execlineb -P
+pipeline -d
+{
+	pipeline -d
+	{
+		swaymsg -t get_tree
+	}
+		jq -r "recurse(.nodes[], .floating_nodes[]) | select(.pid) | \"\\(.id)\\u0007\\(.name)\\u0007\\(.app_id // .window_properties.class)\""
+}
+pipeline -d
+{
+	importas -i ~ HOME
+	forstdin -E props
+		multisubstitute
+		{
+			importas -D "/usr/share:/usr/local/share" -sd: xdd XDG_DATA_DIRS
+			importas -D "${~}/.local/share" xdh XDG_DATA_HOME
+			multidefine -d "\0x07" $props { id name wm_class }
+		}
+		backtick -E icon
+		{
+			backtick -E icon
+			{
+				pipeline -d
+				{
+					grep -C100 -RiFhsx -- "StartupWMClass=${wm_class}" ${xdh}/applications ${xdd}/applications
+				}
+					sed -n "s/^Icon=//p"
+			}
+			ifthenelse { eltest $icon }
+				{ echo $icon }
+				{ echo $wm_class }
+		}
+		printf "%d %s\\0icon\0x1f%s\n" $id $name $icon 
+}
+backtick choice { fuzzel --dmenu }
+importas -i c choice	
+multidefine -d " " $c { id }
+swaymsg "[con_id=${id}] focus"

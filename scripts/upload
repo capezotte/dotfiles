@@ -1,0 +1,4 @@
+#!/bin/bash
+shopt -s extglob
+cd -- "$(dirname -- "$0")"
+s6-update-symlinks ~/.scripts "$PWD/"!(*-compiled)/

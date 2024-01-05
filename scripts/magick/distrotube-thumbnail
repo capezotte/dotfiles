@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+
+while getopts o:h: opt; do case $opt in
+	(o)
+		output=$OPTARG
+	;;
+	(h)
+		if test "$OPTARG" -gt 0 2>/dev/null; then
+			height=$OPTARG
+		else
+			echo 'invalid height'
+			exit 1
+		fi
+	;;
+	(\?)
+		printf 'usage: %s [ -h height ] [ -o output ]\n' "${0##*/}"
+		exit 1
+	;;
+esac; done
+
+shift $((OPTIND-1))
+
+: "${1?}"
+
+s() {
+	sed 's/./\\&/g'
+}
+
+MAGICKOPTS=( -gravity center -size "x$height" -font Impact \( -background black -fill white label:"\\ $(s <<< "${1^^}")\\ " \) )
+shift
+
+bg=white
+fg=purple
+
+for arg; do
+	MAGICKOPTS+=( \( -background "$bg" -fill "$fg" label:"\\ $(s <<< "${arg^^}")\\ " \) )
+	case $bg in
+		(white) bg=purple fg=white ;;
+		(purple) bg=white fg=purple ;;
+	esac
+done
+
+MAGICKOPTS+=( -background transparent -append "${output?}" )
+
+magick "${MAGICKOPTS[@]}"

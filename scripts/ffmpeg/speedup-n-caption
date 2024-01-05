@@ -1,0 +1,43 @@
+#!/bin/sh
+# Defaults:
+PAD_FILTER='null' # no padding
+SPEED_FILTER='null' # no speedup
+TEXT_Y='(7*h)/8-th/2' # text on the lower eighth
+
+while getopts po:s:f: opt; do
+	case $opt in
+		p)
+			# Height of the padding is 50, and we'll center the text on the added padding.
+			PAD_FILTER='pad=height=ih+50:y=50:color=white'
+			TEXT_Y='(50-th)/2'
+			;;
+		s)
+			SPEED_FILTER="setpts=PTS/${OPTARG}"
+			;;
+		f)
+			TEXT_Y="${TEXT_Y}:font=${OPTARG}"
+			;;
+		o)
+			OUTPUT="$OPTARG"
+			;;
+		\?)
+			exit 1
+			;;
+	esac
+done
+
+shift $((OPTIND-1))
+
+TEXT=${1?No text}
+VIDEO=${2?No video}
+OUTPUT=${OUTPUT:-${VIDEO%.*}.gif}
+
+# Escape from the escape hell
+TEXT=$(printf '%s' "$TEXT" | sed "s/\\\\/\\\\&/g;s/[:\\\\']/\\\\&/g;s/[],;\\\\'[]/\\\\&/g")
+
+ffmpeg -i "$VIDEO" -vf "scale=320:-1,\
+${SPEED_FILTER},${PAD_FILTER},\
+drawtext=text=${TEXT}:x=w/2-tw/2:y=${TEXT_Y}:fontcolor=black:fontsize=16,\
+split[a][b];\
+[a]palettegen[pal];\
+[b][pal]paletteuse" "$OUTPUT"

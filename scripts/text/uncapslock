@@ -1,0 +1,4 @@
+#!/usr/bin/perl -pCS
+s/./\l$&/g;
+s/[[:lower:]]/\u$&/;
+s/([.?!]\s*)([[:lower:]])/$1\u$2/g;

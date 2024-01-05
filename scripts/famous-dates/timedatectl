@@ -1,0 +1,5 @@
+#!/bin/sh
+EPOCH="$(date --date='30 march 2010' +%s)"
+NOW="$(date +%s)"
+
+printf '%d March 2010, %02d:%02d\n' $(( (NOW-EPOCH) / 86400 )) $(date +%H) $(date +%M)

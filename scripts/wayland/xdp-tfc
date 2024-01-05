@@ -1,0 +1,58 @@
+#!/bin/sh
+set -x
+IFS='
+'
+
+is_empty_file() {
+	for _file; do
+		test -s "$_file" && return 1
+	done
+	return 0
+}
+
+# shellcheck disable=2034
+multiple="${1:-0}"
+directory="${2:-0}"
+save="${3:-0}"
+path="${4:-$HOME}"
+out="${5:-$HOME/xdp-tfc}"
+
+: > "$out"
+
+
+if [ "$save" -eq 1 ] && test ! -d "$path" && test ! -f "$path" && test ! -L "$path"; then
+	touch -- "$path"
+fi
+
+dir_path=/dev/null
+file_path=/dev/null
+
+if [ "$directory" -eq 0 ]; then
+	file_path="$out"
+else
+	dir_path="$out"
+fi
+
+footclient -- lf -selection-path "$file_path" -last-dir-path "$dir_path" "$path"
+
+set --
+while IFS='' read -r file || test -n "$file"; do
+	set -- "$@" "$file"
+done < "$out"
+
+if [ "$save" -eq 1 ] && ! is_empty_file "$@"; then
+	if ! zenity --question --text="The following $# files will be overwritten:
+
+$*
+
+Ok?"
+	then
+		set --
+	fi
+fi
+
+if [ "$save" -eq 1 ] && [ ! -s "$path" ]; then
+	rm -f -- "$path"
+fi
+
+printf '%s\n' "$@" > "$out"

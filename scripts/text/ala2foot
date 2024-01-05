@@ -1,0 +1,84 @@
+#!/usr/bin/awk -f
+BEGIN {
+	suffix["black"]=0
+	suffix["red"]=1
+	suffix["green"]=2
+	suffix["yellow"]=3
+	suffix["blue"]=4
+	suffix["magenta"]=5
+	suffix["cyan"]=6
+	suffix["white"]=7
+	suffix["background"]="background"
+	suffix["foreground"]="foreground"
+	suffix["cursor"]="C"
+	suffix["text"]="foreground"
+	FS="(^|:)[[:blank:]]+"
+	print("[colors]")
+}
+
+
+/^[[:space:]]*(#|$)/ {
+	next
+}
+
+/^colors:/ {
+	prefix="P"
+	next
+}
+
+/[[:space:]]+cursor:/ && !(prefix == "CURSOR") {
+	prefix="CURSOR"
+	next
+}
+
+/[[:space:]]+primary:/ {
+	prefix=""
+	next
+}
+
+/[[:space:]]+selection:/ {
+	prefix="selection-"
+	next
+}
+
+/[[:space:]]+normal:/ {
+	prefix="regular"
+	next
+}
+
+/[[:space:]]+bright:/ {
+	prefix="bright"
+	next
+}
+
+{
+	color=$3
+	gsub("^['\"]|['\"]$", "", color)
+	gsub("^(0x|#)", "", color)
+}
+
+$2 in suffix {
+	if (prefix == "CURSOR") {
+		if ($2 == "text")
+			cursorColor=color " " cursorColor
+		else if ($2 == "cursor")
+			cursorColor=cursorColor " " color
+	} else {
+		printf("%s%s=%s\n", prefix, suffix[$2], color)
+	}
+}
+
+prefix == "P" && $2 ~ "color(0?[0-9]|1[1-5])" {
+	digit = $2
+	gsub("[^0-9]","",digit)
+	printf("%s%d=%s\n",
+	       (digit+0 < 8) ? "regular" : "bright",
+	       (digit+0 < 8) ? digit : digit - 8,
+	       color)
+}
+
+END {
+	if (cursorColor) {
+		printf("[cursor]\ncolor=%s\n", cursorColor)
+	}
+}

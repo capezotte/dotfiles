@@ -1,0 +1,19 @@
+#!/bin/sh
+
+PKG=$(
+	perl -l12e '
+		for (glob("/var/db/repos/*/*/*/*.ebuild")) {
+			($repo, $category, $name) = m@^/var/db/repos/([^/]+)/([^/]+)/([^/]+)/.*.ebuild$@;
+			$pkg = "$category/$name";
+			print "$pkg" if (!defined $used{$pkg});
+			$used{$pkg} = 1;
+		}
+	' | fzf --preview 'equery meta {}' -q "$1"
+)
+
+[ "$PKG" ] || {
+	echo >&2 'No package selected.'
+	exit 100
+}
+
+exec doas emerge -a -- "$PKG"

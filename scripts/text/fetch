@@ -1,0 +1,172 @@
+#!/bin/sh
+# Modified from ufetch by jschx @ gitlab so adding new info is easier.
+
+# helpers
+wc_l() {
+	_ret=0
+	while read -r _line || test -n "$_line"; do
+		: $((_ret+=1))
+	done
+	echo "$_ret"
+}
+
+. /etc/os-release
+
+: "${USER:=$(id -un)}"
+
+ui='unknown'
+uitype='UI'
+if [ -n "${DE}" ]; then
+	ui="${DE}"
+	uitype='DE'
+elif [ -n "${WM}" ]; then
+	ui="${WM}"
+	uitype='WM'
+elif [ -n "${XDG_CURRENT_DESKTOP}" ]; then
+	ui="${XDG_CURRENT_DESKTOP}"
+	uitype='DE'
+elif [ -n "${DESKTOP_SESSION}" ]; then
+	ui="${DESKTOP_SESSION}"
+	uitype='DE'
+elif [ -n "${XDG_SESSION_TYPE}" ]; then
+	ui="${XDG_SESSION_TYPE}"
+fi
+# Basename
+ui="${ui##*/}"
+
+# probably don't change these
+# shellcheck disable=2034
+if [ -x "$(command -v tput)" ]; then
+	bold="$(tput bold)"
+	black="$(tput setaf 0)"
+	red="$(tput setaf 1)"
+	green="$(tput setaf 2)"
+	yellow="$(tput setaf 3)"
+	blue="$(tput setaf 4)"
+	magenta="$(tput setaf 5)"
+	cyan="$(tput setaf 6)"
+	white="$(tput setaf 7)"
+	reset="$(tput sgr0)"
+	italic="$(tput sitm)"
+fi
+
+# you can change these
+lc="${reset}${bold}${blue}"         # labels
+nc="${reset}${bold}${blue}"         # user and hostname
+ic="${reset}"                       # info
+c0="${reset}${yellow}"                # first color
+it="${reset}${italic}${blue}"
+
+## OUTPUT
+
+TMP=$(mktemp -d)
+
+# logo to use on the output.
+cat > "$TMP/logo.uf" <<EOF
+${c0}               XX
+${c0}       'dc;ldk XX kdc
+${c0}      'OXk 'XX XX.XXXx
+${c0}   .;OX    .XX XX XX,X0.    .
+${c0}  ,XX,     .XX XX XX. kX;,lOX,
+${c0}  kX;      .XX XX XX..kXXd :Xk
+${c0} .XX       .XX XX XX.c      XX.
+${c0}o0Xd         , XX XX.       dXKo
+${c0} cX0      .cxX XX XX.       OXc
+${c0}  XX. .;dKO,XX XX XX.       XX
+${c0}  ,X0 .,   .XX XX XX.      0Xc
+${c0}  llXK:    .XX XX XX.       ,o
+${c0}     .X0c. .XX XX Xc  .
+${c0}       dXX0OXX XXlolx0XK,
+${c0}               XX.
+${c0}               XX
+EOF
+
+#sed "s/^/${c0}/" <<'EOF' > "$TMP/logo.uf"
+#     _...._
+#   .-.     /
+#  /o.o\ ):.\
+#  \   / `- .`--._
+#  // /            `-.
+# '...\     .         `.
+#  `--''.    '          `.
+#      .'   .'            `-.
+#   .-'    /`-.._            \
+# .'    _.'      :      .-'"'/
+#| _,--`       .'     .'    /
+#\ \          /     .'     /
+# \///        |    ' |    /
+#             \   (  `.   ``-.
+#              \   \   `._    \
+#            _.-`   )    .'    )
+#            `.__.-'  .-' _-.-'
+#                     `.__,'
+#EOF
+
+# pad logo with spaces
+logo_wid=1
+while IFS='' read -r _logo || test -n "$_logo"; do
+	if [ ${#_logo} -gt $((logo_wid-1)) ]; then
+		logo_wid=$((${#_logo}+1))
+	fi
+done < "$TMP/logo.uf"
+
+while read -r _logo || test -n "$_logo"; do
+	printf "%-${logo_wid}s\n" "$_logo"
+done < "$TMP/logo.uf" > "$TMP/logo.uf.new"
+
+mv -f "$TMP/logo.uf.new" "$TMP/logo.uf"
+
+# Add info
+
+# User and hostname. Also song lyrics 'cause why not.
+printf '%s\n' "${nc}${it}Ouça o que eu digo, não ouça ninguém." \
+         "${reset}${bold}-----------------------------------------------" \
+                   "${nc}$(id -un)${reset}@${nc}$(hostname)" \
+              > "$TMP/info.uf"
+
+# All THINGS:   INFO combos
+uptime=$(uptime -p); uptime="${uptime#up }"
+printf "${reset}${bold}${lc}%-10s ${ic}%-32s${reset}${bold}\n" \
+	OS: "$PRETTY_NAME" \
+	KERNEL: "$(uname -sr)" \
+	INIT: "$(ps -ocomm= 1)" \
+	LIBC: "$(
+		ldd --version 2>&1 |
+		awk '/libc/ {
+			if(match($0, "[^[:space:](]+ libc"))
+				libc=substr($0,RSTART,RLENGTH)
+		}
+		END {
+			print libc ? libc : "GNU libc"
+		}'
+	)" \
+	COMPILER: "$(cc --version 2>&1 | head -n1)" \
+	PACKAGES:  "$( { pacman -Qq || qlist -I; } 2>/dev/null | wc -l)" \
+	SHELL: "${SHELL##*/}" \
+	TERMINAL: "$(
+		P=$PPID
+		while C=$(ps -ocomm= "$P"); [ -z "${C##*sh}" ]; do
+			P=$(ps -oppid= "$P"); P="${P#*[!0-9]}"
+		done
+		echo "$C"
+	)" \
+	UPTIME: "$uptime" \
+	"${uitype}:" "${ui}" \
+	>> "$TMP/info.uf"
+
+#	UDEV: "$(pgrep -l 'devd$' | sed 's/^[^ ]* //')" \
+
+printf '%s\n' "${reset}${bold}-----------------------------------------------" >> "$TMP/info.uf"
+
+# Line to begin printing system information
+L0=$(( ( $(wc_l < "$TMP/logo.uf") - $(wc_l < "$TMP/info.uf") ) / 2 ))
+
+{
+	# Add padding lines
+	printf "%${L0}s" '' | tr ' ' '\n'
+	# Show actual info
+	cat "$TMP/info.uf"
+} | paste -d '' "$TMP/logo.uf" -
+
+rm -r "$TMP"
+tput sgr0

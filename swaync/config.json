@@ -1,0 +1,15 @@
+{
+	"widgets": [ "title", "dnd", "notifications" ],
+	"notification-visibility": {
+		"telegram-is-loud": {
+			"state": "muted",
+			"desktop-entry": "org\\.telegram\\.desktop"
+		}
+	},
+	"widget-config": {
+		"title": {
+			"text": "Notificações",
+			"button-text": "Limpar tudo"
+		}
+	}
+}
